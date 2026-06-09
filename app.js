@@ -148,6 +148,7 @@ const elements = {
   sleepOptions: document.getElementById('sleep-options'),
   sleepStartTime: document.getElementById('sleep-start-time'),
   generateScheduleBtn: document.getElementById('generate-schedule-btn'),
+  copyScheduleBtn: document.getElementById('copy-schedule-btn'),
   scheduleTimeline: document.getElementById('schedule-timeline'),
   timelineList: document.getElementById('timeline-list'),
   guidelinesSection: document.getElementById('guidelines-section'),
@@ -182,6 +183,7 @@ function init() {
   elements.freqPlus.addEventListener('click', () => adjustFrequency(1));
   elements.customFrequency.addEventListener('change', handleCustomFrequencyChange);
   elements.generateScheduleBtn.addEventListener('click', generateSchedule);
+  elements.copyScheduleBtn.addEventListener('click', handleCopySchedule);
 
   // Load saved data from localStorage (Auto calculation if birthdate exists)
   loadSavedData();
@@ -781,6 +783,70 @@ function highlightCurrentGuideline(guideline) {
     if (minDays === guideline.minDays) {
       row.classList.add('current-row');
     }
+  });
+}
+
+// ============================================
+// Copy Schedule to Clipboard
+// ============================================
+function handleCopySchedule() {
+  if (!currentState.birthDate) return;
+
+  const actualAgeStr = formatAge(currentState.actualAgeDays);
+  const correctedAgeStr = currentState.isPremature ? formatAge(currentState.correctedAgeDays) : '';
+  const weightStr = currentState.weight ? `${currentState.weight}kg` : '미입력';
+  const totalMl = currentState.dailyTotal;
+  const perFeeding = currentState.recommendedPerFeeding;
+  const freq = currentState.recommendedFrequency;
+
+  // Get time interval text safely
+  const intervalVal = elements.interval.textContent;
+  const intervalUnit = document.querySelector('.interval-card .info-unit').textContent;
+  const intervalStr = `${intervalVal}${intervalUnit.replace(' (활동 시간 내)', '')}`;
+
+  // Parse timeline items
+  const items = elements.timelineList.querySelectorAll('.timeline-item');
+  let scheduleText = '';
+  items.forEach(item => {
+    const num = item.querySelector('.timeline-number').textContent;
+    const time = item.querySelector('.timeline-time').textContent;
+    const amount = item.querySelector('.timeline-amount').textContent;
+    const period = item.querySelector('.timeline-period').textContent;
+    scheduleText += `${num} | ${time} (${amount}) - ${period}\n`;
+  });
+
+  let copyText = `🍼 오늘의 아기 수유 스케줄 🍼\n\n`;
+  copyText += `📅 나이: 실제 ${actualAgeStr}`;
+  if (currentState.isPremature) {
+    copyText += ` (교정 ${correctedAgeStr})`;
+  }
+  copyText += `\n⚖️ 체중: ${weightStr}\n`;
+  copyText += `📊 하루 수유 요약:\n`;
+  copyText += `   - 1회 수유량: ${perFeeding}ml\n`;
+  copyText += `   - 하루 총량: ${totalMl}ml (총 ${freq}회)\n`;
+  copyText += `   - 수유 간격: ${intervalStr}\n\n`;
+  copyText += `⏰ 수유 시간표:\n`;
+  copyText += scheduleText;
+  copyText += `\n-----------------------------\n`;
+  copyText += `✨ 아기 수유 계산기(baby-feed)로 생성됨`;
+
+  navigator.clipboard.writeText(copyText).then(() => {
+    const btn = elements.copyScheduleBtn;
+    const originalHtml = btn.innerHTML;
+    
+    btn.classList.add('success');
+    btn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>복사 완료!</span>
+    `;
+
+    setTimeout(() => {
+      btn.classList.remove('success');
+      btn.innerHTML = originalHtml;
+    }, 2000);
+  }).catch(err => {
+    console.error('복사 실패:', err);
+    alert('클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.');
   });
 }
 

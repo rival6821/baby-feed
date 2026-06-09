@@ -687,7 +687,7 @@ body {
 .timeline-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   margin-bottom: var(--space-lg);
 }
 
@@ -1159,4 +1159,43 @@ body {
 /* Sleep Options Animation */
 .sleep-options {
   animation: slide-down 0.3s ease both;
+}
+
+/* ============================================
+   Copy to Clipboard Button
+   ============================================ */
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 12px;
+  background: var(--color-surface-solid);
+  border: 1.5px solid var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-copy:hover {
+  background: var(--color-accent-lavender);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.btn-copy:active {
+  transform: translateY(0);
+}
+
+.btn-copy.success {
+  background: var(--color-success);
+  color: white;
+  border-color: var(--color-success);
+}
+
+.btn-copy svg {
+  flex-shrink: 0;
 }
