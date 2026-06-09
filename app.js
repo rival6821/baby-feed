@@ -184,6 +184,8 @@ function init() {
   elements.customFrequency.addEventListener('change', handleCustomFrequencyChange);
   elements.generateScheduleBtn.addEventListener('click', generateSchedule);
   elements.copyScheduleBtn.addEventListener('click', handleCopySchedule);
+  elements.firstFeedingTime.addEventListener('input', handleScheduleInputChange);
+  elements.sleepStartTime.addEventListener('input', handleScheduleInputChange);
 
   // Load saved data from localStorage (Auto calculation if birthdate exists)
   loadSavedData();
@@ -316,6 +318,24 @@ function handleSleepToggle() {
     elements.sleepOptions.classList.remove('sleep-options');
     void elements.sleepOptions.offsetWidth; // force reflow
     elements.sleepOptions.classList.add('sleep-options');
+  }
+
+  saveToLocalStorage();
+  if (currentState.birthDate) {
+    updateResultUI();
+    if (elements.scheduleTimeline.style.display !== 'none') {
+      generateSchedule(true);
+    }
+  }
+}
+
+function handleScheduleInputChange() {
+  saveToLocalStorage();
+  if (currentState.birthDate) {
+    updateResultUI();
+    if (elements.scheduleTimeline.style.display !== 'none') {
+      generateSchedule(true);
+    }
   }
 }
 
@@ -512,6 +532,7 @@ function updateResultUI() {
   // Interval calculation
   const isSleep = elements.sleepToggle.checked;
   let intervalText = '';
+  let intervalDisplay = '';
 
   if (isSleep) {
     // If sleep mode is on, we calculate interval based on active time
@@ -538,15 +559,18 @@ function updateResultUI() {
       const minutes = intervalMinutes % 60;
       if (minutes === 0) {
         intervalText = `${hours}`;
+        intervalDisplay = `${hours}시간`;
         elements.interval.textContent = intervalText;
         document.querySelector('.interval-card .info-unit').textContent = '시간 (활동 시간 내)';
       } else {
         intervalText = `${hours}시간 ${minutes}분`;
+        intervalDisplay = intervalText;
         elements.interval.textContent = intervalText;
         document.querySelector('.interval-card .info-unit').textContent = '활동 시간 내';
       }
     } else {
       elements.interval.textContent = '-';
+      intervalDisplay = '-';
       document.querySelector('.interval-card .info-unit').textContent = '수유 횟수 부족';
     }
   } else {
@@ -556,10 +580,12 @@ function updateResultUI() {
     const minutes = Math.round((intervalHours - hours) * 60);
     if (minutes === 0) {
       intervalText = `${hours}`;
+      intervalDisplay = `${hours}시간`;
       elements.interval.textContent = intervalText;
       document.querySelector('.interval-card .info-unit').textContent = '시간';
     } else {
       intervalText = `${hours}시간 ${minutes}분`;
+      intervalDisplay = intervalText;
       elements.interval.textContent = intervalText;
       document.querySelector('.interval-card .info-unit').textContent = '';
     }
@@ -579,6 +605,15 @@ function updateResultUI() {
       <strong>⚖️ 체중 기반 계산 (${currentState.weight}kg) 적용됨</strong><br>
       체중당 권장량 (150ml/kg) 기준으로 하루 약 ${Math.round(currentState.weight * 150)}ml 산출.<br>
       <span style="color: var(--color-primary); font-size: 0.85em;">주변 가이드: ${g.label} (${g.minPerFeeding}~${g.maxPerFeeding}ml)</span>
+    `;
+  }
+
+  if (isSleep) {
+    baseRangeHtml += `
+      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(108, 99, 255, 0.15); font-size: 0.85em; color: var(--color-secondary); line-height: 1.5;">
+        🌙 <strong>밤잠 시간 설정 적용됨:</strong><br>
+        밤잠 시간 동안 수유를 쉬어가기 위해, 낮(활동 시간) 동안의 수유 간격이 <strong>${intervalDisplay}</strong>으로 단축 조정되었습니다.
+      </div>
     `;
   }
   
@@ -643,6 +678,9 @@ document.head.appendChild(shakeStyle);
 function generateSchedule(isSilent = false) {
   const timeStr = elements.firstFeedingTime.value;
   if (!timeStr) return;
+
+  // Refresh feeding guide cards and range text to ensure they match
+  updateResultUI();
 
   const [hours, minutes] = timeStr.split(':').map(Number);
   const freq = currentState.recommendedFrequency;
@@ -801,8 +839,13 @@ function handleCopySchedule() {
 
   // Get time interval text safely
   const intervalVal = elements.interval.textContent;
-  const intervalUnit = document.querySelector('.interval-card .info-unit').textContent;
-  const intervalStr = `${intervalVal}${intervalUnit.replace(' (활동 시간 내)', '')}`;
+  const rawIntervalUnit = document.querySelector('.interval-card .info-unit').textContent;
+  const cleanUnit = rawIntervalUnit
+    .replace(' (활동 시간 내)', '')
+    .replace('활동 시간 내', '')
+    .trim();
+  const isSleepActive = elements.sleepToggle.checked;
+  const intervalStr = `${intervalVal}${cleanUnit}${isSleepActive ? ' (활동 시간 내)' : ''}`;
 
   // Parse timeline items
   const items = elements.timelineList.querySelectorAll('.timeline-item');
