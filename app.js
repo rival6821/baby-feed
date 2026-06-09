@@ -1,6 +1,6 @@
 /**
  * 아기 수유량 계산기 - App Logic
- * 월령별 소아과 가이드라인 기반 수유량 및 스케줄 계산
+ * 월령별 소아과 가이드라인 및 체중 기준 수유량 산출, 밤잠 적용 스케줄 알고리즘
  */
 
 // ============================================
@@ -104,6 +104,7 @@ const FEEDING_GUIDELINES = [
 // ============================================
 let currentState = {
   birthDate: null,
+  weight: null,
   isPremature: false,
   gestationalWeeks: 40,
   actualAgeDays: 0,
@@ -121,6 +122,7 @@ let currentState = {
 // ============================================
 const elements = {
   birthDate: document.getElementById('birth-date'),
+  babyWeight: document.getElementById('baby-weight'),
   prematureToggle: document.getElementById('premature-toggle'),
   prematureOptions: document.getElementById('premature-options'),
   gestationalWeeks: document.getElementById('gestational-weeks'),
@@ -142,6 +144,9 @@ const elements = {
   freqPlus: document.getElementById('freq-plus'),
   scheduleSection: document.getElementById('schedule-section'),
   firstFeedingTime: document.getElementById('first-feeding-time'),
+  sleepToggle: document.getElementById('sleep-toggle'),
+  sleepOptions: document.getElementById('sleep-options'),
+  sleepStartTime: document.getElementById('sleep-start-time'),
   generateScheduleBtn: document.getElementById('generate-schedule-btn'),
   scheduleTimeline: document.getElementById('schedule-timeline'),
   timelineList: document.getElementById('timeline-list'),
@@ -170,6 +175,7 @@ function init() {
 
   // Event Listeners
   elements.prematureToggle.addEventListener('change', handlePrematureToggle);
+  elements.sleepToggle.addEventListener('change', handleSleepToggle);
   elements.calculateBtn.addEventListener('click', handleCalculate);
   elements.customFrequencyToggle.addEventListener('change', handleCustomFrequencyToggle);
   elements.freqMinus.addEventListener('click', () => adjustFrequency(-1));
@@ -232,6 +238,16 @@ function handlePrematureToggle() {
   }
 }
 
+function handleSleepToggle() {
+  const show = elements.sleepToggle.checked;
+  elements.sleepOptions.style.display = show ? 'block' : 'none';
+  if (show) {
+    elements.sleepOptions.classList.remove('sleep-options');
+    void elements.sleepOptions.offsetWidth; // force reflow
+    elements.sleepOptions.classList.add('sleep-options');
+  }
+}
+
 function handleCalculate() {
   const birthDateStr = elements.birthDate.value;
   if (!birthDateStr) {
@@ -274,12 +290,33 @@ function handleCalculate() {
 
   // Calculate recommended values (use midpoint)
   const recFreq = Math.round((guideline.minFrequency + guideline.maxFrequency) / 2);
-  const recPerFeeding = Math.round((guideline.minPerFeeding + guideline.maxPerFeeding) / 2);
+  
+  // Check weight value
+  const weightVal = parseFloat(elements.babyWeight.value);
+  if (!isNaN(weightVal) && weightVal > 0) {
+    currentState.weight = weightVal;
+    
+    // Weight formula: 150ml per kg, max 1000ml per day
+    let rawDailyTotal = Math.min(1000, weightVal * 150);
+    
+    // Calculate 1 feeding amount (rounded to nearest 10ml)
+    let calculatedPerFeeding = Math.round((rawDailyTotal / recFreq) / 10) * 10;
+    
+    // Ensure it falls within reasonable limits for the age
+    calculatedPerFeeding = Math.max(guideline.minPerFeeding, Math.min(guideline.maxPerFeeding, calculatedPerFeeding));
+    
+    currentState.recommendedFrequency = recFreq;
+    currentState.recommendedPerFeeding = calculatedPerFeeding;
+    currentState.dailyTotal = calculatedPerFeeding * recFreq;
+  } else {
+    currentState.weight = null;
+    const recPerFeeding = Math.round((guideline.minPerFeeding + guideline.maxPerFeeding) / 2);
+    currentState.recommendedFrequency = recFreq;
+    currentState.recommendedPerFeeding = recPerFeeding;
+    currentState.dailyTotal = recPerFeeding * recFreq;
+  }
 
-  currentState.recommendedFrequency = recFreq;
-  currentState.recommendedPerFeeding = recPerFeeding;
-  currentState.dailyTotal = recPerFeeding * recFreq;
-  currentState.customFrequency = recFreq;
+  currentState.customFrequency = currentState.recommendedFrequency;
 
   // Reset custom frequency toggle
   elements.customFrequencyToggle.checked = false;
@@ -323,13 +360,7 @@ function handleCustomFrequencyToggle() {
     recalculateWithCustomFrequency();
   } else {
     // Restore recommended values
-    const guideline = currentState.guideline;
-    const recFreq = Math.round((guideline.minFrequency + guideline.maxFrequency) / 2);
-    const recPerFeeding = Math.round((guideline.minPerFeeding + guideline.maxPerFeeding) / 2);
-    currentState.recommendedFrequency = recFreq;
-    currentState.recommendedPerFeeding = recPerFeeding;
-    currentState.dailyTotal = recPerFeeding * recFreq;
-    updateResultUI();
+    handleCalculate();
   }
 }
 
@@ -353,12 +384,19 @@ function handleCustomFrequencyChange() {
 function recalculateWithCustomFrequency() {
   const freq = currentState.customFrequency;
   const guideline = currentState.guideline;
-  // Keep daily total from recommended, adjust per-feeding
-  const recFreq = Math.round((guideline.minFrequency + guideline.maxFrequency) / 2);
-  const recPerFeeding = Math.round((guideline.minPerFeeding + guideline.maxPerFeeding) / 2);
-  const dailyTotal = recPerFeeding * recFreq;
+  let dailyTarget = 0;
+
+  if (currentState.weight) {
+    dailyTarget = Math.min(1000, currentState.weight * 150);
+  } else {
+    const recFreq = Math.round((guideline.minFrequency + guideline.maxFrequency) / 2);
+    const recPerFeeding = Math.round((guideline.minPerFeeding + guideline.maxPerFeeding) / 2);
+    dailyTarget = recPerFeeding * recFreq;
+  }
   
-  const perFeeding = Math.round(dailyTotal / freq);
+  let perFeeding = Math.round((dailyTarget / freq) / 10) * 10;
+  // Ensure it doesn't get ridiculously small or large
+  perFeeding = Math.max(10, Math.min(300, perFeeding));
 
   currentState.recommendedFrequency = freq;
   currentState.recommendedPerFeeding = perFeeding;
@@ -391,29 +429,80 @@ function updateResultUI() {
   animateValue(elements.frequency, currentState.recommendedFrequency);
   animateValue(elements.dailyTotal, currentState.dailyTotal);
 
-  // Interval
-  const intervalHours = (24 / currentState.recommendedFrequency);
-  const hours = Math.floor(intervalHours);
-  const minutes = Math.round((intervalHours - hours) * 60);
-  let intervalText;
-  if (minutes === 0) {
-    intervalText = `${hours}`;
-    elements.interval.textContent = intervalText;
-    document.querySelector('.interval-card .info-unit').textContent = '시간';
+  // Interval calculation
+  const isSleep = elements.sleepToggle.checked;
+  let intervalText = '';
+
+  if (isSleep) {
+    // If sleep mode is on, we calculate interval based on active time
+    const startStr = elements.firstFeedingTime.value;
+    const endStr = elements.sleepStartTime.value;
+    
+    const [startH, startM] = startStr.split(':').map(Number);
+    const [endH, endM] = endStr.split(':').map(Number);
+    
+    let activeMinutes = 0;
+    const startTotal = startH * 60 + startM;
+    const endTotal = endH * 60 + endM;
+
+    if (endTotal >= startTotal) {
+      activeMinutes = endTotal - startTotal;
+    } else {
+      activeMinutes = (endTotal + 1440) - startTotal;
+    }
+
+    const freq = currentState.recommendedFrequency;
+    if (freq > 1) {
+      const intervalMinutes = Math.round(activeMinutes / (freq - 1));
+      const hours = Math.floor(intervalMinutes / 60);
+      const minutes = intervalMinutes % 60;
+      if (minutes === 0) {
+        intervalText = `${hours}`;
+        elements.interval.textContent = intervalText;
+        document.querySelector('.interval-card .info-unit').textContent = '시간 (활동 시간 내)';
+      } else {
+        intervalText = `${hours}시간 ${minutes}분`;
+        elements.interval.textContent = intervalText;
+        document.querySelector('.interval-card .info-unit').textContent = '활동 시간 내';
+      }
+    } else {
+      elements.interval.textContent = '-';
+      document.querySelector('.interval-card .info-unit').textContent = '수유 횟수 부족';
+    }
   } else {
-    intervalText = `${hours}시간 ${minutes}분`;
-    elements.interval.textContent = intervalText;
-    document.querySelector('.interval-card .info-unit').textContent = '';
+    // 24 hour equal distribution
+    const intervalHours = (24 / currentState.recommendedFrequency);
+    const hours = Math.floor(intervalHours);
+    const minutes = Math.round((intervalHours - hours) * 60);
+    if (minutes === 0) {
+      intervalText = `${hours}`;
+      elements.interval.textContent = intervalText;
+      document.querySelector('.interval-card .info-unit').textContent = '시간';
+    } else {
+      intervalText = `${hours}시간 ${minutes}분`;
+      elements.interval.textContent = intervalText;
+      document.querySelector('.interval-card .info-unit').textContent = '';
+    }
   }
 
   // Range info
   const g = currentState.guideline;
-  elements.rangeText.innerHTML = `
+  let baseRangeHtml = `
     <strong>${g.label}</strong> 기준 | 
     1회 ${g.minPerFeeding}~${g.maxPerFeeding}ml · 
     하루 ${g.minFrequency}~${g.maxFrequency}회<br>
     <span style="color: var(--color-text-muted); font-size: 0.8em;">💡 ${g.description}</span>
   `;
+
+  if (currentState.weight) {
+    baseRangeHtml = `
+      <strong>⚖️ 체중 기반 계산 (${currentState.weight}kg) 적용됨</strong><br>
+      체중당 권장량 (150ml/kg) 기준으로 하루 약 ${Math.round(currentState.weight * 150)}ml 산출.<br>
+      <span style="color: var(--color-primary); font-size: 0.85em;">주변 가이드: ${g.label} (${g.minPerFeeding}~${g.maxPerFeeding}ml)</span>
+    `;
+  }
+  
+  elements.rangeText.innerHTML = baseRangeHtml;
 }
 
 function animateValue(element, target) {
@@ -478,25 +567,85 @@ function generateSchedule() {
   const [hours, minutes] = timeStr.split(':').map(Number);
   const freq = currentState.recommendedFrequency;
   const perFeeding = currentState.recommendedPerFeeding;
-  const intervalMinutes = Math.round((24 * 60) / freq);
 
+  const isSleepMode = elements.sleepToggle.checked;
   const scheduleItems = [];
-  for (let i = 0; i < freq; i++) {
-    const totalMinutes = (hours * 60 + minutes + intervalMinutes * i) % (24 * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    const isNight = h >= 22 || h < 6;
-    const period = h < 12 ? '오전' : '오후';
-    const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+
+  if (isSleepMode) {
+    const sleepStartStr = elements.sleepStartTime.value;
+    const [sleepStartH, sleepStartM] = sleepStartStr.split(':').map(Number);
     
-    scheduleItems.push({
-      number: i + 1,
-      time: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
-      displayTime: `${period} ${displayH}:${String(m).padStart(2, '0')}`,
-      amount: perFeeding,
-      isNight: isNight,
-      period: isNight ? '🌙 야간' : h < 12 ? '☀️ 오전' : '🌤️ 오후'
-    });
+    const startMinutesTotal = hours * 60 + minutes;
+    const sleepStartMinutesTotal = sleepStartH * 60 + sleepStartM;
+    
+    let activeMinutes = 0;
+    if (sleepStartMinutesTotal >= startMinutesTotal) {
+      activeMinutes = sleepStartMinutesTotal - startMinutesTotal;
+    } else {
+      activeMinutes = (sleepStartMinutesTotal + 1440) - startMinutesTotal;
+    }
+
+    if (freq > 1) {
+      const intervalMinutes = Math.round(activeMinutes / (freq - 1));
+      
+      for (let i = 0; i < freq; i++) {
+        const currentTotalMinutes = (startMinutesTotal + intervalMinutes * i) % 1440;
+        const h = Math.floor(currentTotalMinutes / 60);
+        const m = currentTotalMinutes % 60;
+        
+        const period = h < 12 ? '오전' : '오후';
+        const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const displayTime = `${period} ${displayH}:${String(m).padStart(2, '0')}`;
+        
+        // Mark as sleeping hour if close to sleep boundaries
+        const isNight = h >= 22 || h < 6;
+        let periodText = h < 12 ? '☀️ 오전' : '🌤️ 오후';
+        if (i === 0) periodText = '🌅 첫 수유 (기상)';
+        if (i === freq - 1) periodText = '🌙 마지막 수유 (취침 직전)';
+
+        scheduleItems.push({
+          number: i + 1,
+          time: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+          displayTime: displayTime,
+          amount: perFeeding,
+          isNight: isNight,
+          period: periodText
+        });
+      }
+    } else {
+      // Just 1 feeding
+      const period = hours < 12 ? '오전' : '오후';
+      const displayH = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+      scheduleItems.push({
+        number: 1,
+        time: timeStr,
+        displayTime: `${period} ${displayH}:${String(minutes).padStart(2, '0')}`,
+        amount: perFeeding,
+        isNight: hours >= 22 || hours < 6,
+        period: '🌅 첫 수유 (기상)'
+      });
+    }
+
+  } else {
+    // 24 hour equal distribution
+    const intervalMinutes = Math.round((24 * 60) / freq);
+    for (let i = 0; i < freq; i++) {
+      const totalMinutes = (hours * 60 + minutes + intervalMinutes * i) % (24 * 60);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      const isNight = h >= 22 || h < 6;
+      const period = h < 12 ? '오전' : '오후';
+      const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      
+      scheduleItems.push({
+        number: i + 1,
+        time: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+        displayTime: `${period} ${displayH}:${String(m).padStart(2, '0')}`,
+        amount: perFeeding,
+        isNight: isNight,
+        period: isNight ? '🌙 야간' : h < 12 ? '☀️ 오전' : '🌤️ 오후'
+      });
+    }
   }
 
   // Render timeline
@@ -523,8 +672,6 @@ function generateSchedule() {
 // ============================================
 function populateGuidelinesTable() {
   elements.guidelinesTbody.innerHTML = FEEDING_GUIDELINES.map(g => {
-    const avgPerFeeding = Math.round((g.minPerFeeding + g.maxPerFeeding) / 2);
-    const avgFreq = Math.round((g.minFrequency + g.maxFrequency) / 2);
     const totalMin = g.minPerFeeding * g.minFrequency;
     const totalMax = g.maxPerFeeding * g.maxFrequency;
     return `
@@ -548,7 +695,6 @@ function highlightCurrentGuideline(guideline) {
   const rows = elements.guidelinesTbody.querySelectorAll('tr');
   rows.forEach(row => {
     const minDays = parseInt(row.dataset.minDays);
-    const maxDays = parseInt(row.dataset.maxDays) || Infinity;
     if (minDays === guideline.minDays) {
       row.classList.add('current-row');
     }

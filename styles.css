@@ -1124,3 +1124,39 @@ body {
     padding: 0 var(--space-lg) var(--space-lg) var(--space-lg);
   }
 }
+
+/* ============================================
+   Inline Group Layout & Weight Input
+   ============================================ */
+.inline-group {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.input-col {
+  flex: 1;
+}
+
+.weight-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.weight-input-container .input-field {
+  padding-right: 2.5rem;
+}
+
+.weight-input-container .input-unit {
+  position: absolute;
+  right: 1rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+/* Sleep Options Animation */
+.sleep-options {
+  animation: slide-down 0.3s ease both;
+}

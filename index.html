@@ -33,9 +33,18 @@
         <h2>아기 정보 입력</h2>
       </div>
 
-      <div class="form-group">
-        <label for="birth-date">생년월일</label>
-        <input type="date" id="birth-date" class="input-field">
+      <div class="form-group inline-group">
+        <div class="input-col">
+          <label for="birth-date">생년월일</label>
+          <input type="date" id="birth-date" class="input-field">
+        </div>
+        <div class="input-col">
+          <label for="baby-weight">체중 (선택)</label>
+          <div class="weight-input-container">
+            <input type="number" id="baby-weight" class="input-field" step="0.1" min="1" max="30" placeholder="예: 4.5">
+            <span class="input-unit">kg</span>
+          </div>
+        </div>
       </div>
 
       <div class="form-group toggle-group">
@@ -156,8 +165,27 @@
       </div>
 
       <div class="form-group">
-        <label for="first-feeding-time">첫 수유 시간</label>
+        <label for="first-feeding-time">첫 수유 시간 (기상 시간)</label>
         <input type="time" id="first-feeding-time" class="input-field" value="06:00">
+      </div>
+
+      <div class="form-group toggle-group">
+        <div class="toggle-label-row">
+          <label for="sleep-toggle">밤잠(통잠) 시간 설정</label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="sleep-toggle" class="toggle-input">
+            <label for="sleep-toggle" class="toggle-slider"></label>
+          </div>
+        </div>
+        <p class="helper-text">밤잠 시간 동안에는 수유를 건너뛰고 낮 시간대에 스케줄을 배정합니다</p>
+      </div>
+
+      <div class="sleep-options" id="sleep-options" style="display:none;">
+        <div class="form-group">
+          <label for="sleep-start-time">밤잠 시작 시간</label>
+          <input type="time" id="sleep-start-time" class="input-field" value="20:00">
+          <p class="helper-text">첫 수유 시간(기상)까지 밤잠을 자는 것으로 간주합니다</p>
+        </div>
       </div>
 
       <button class="btn-secondary" id="generate-schedule-btn">
