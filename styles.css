@@ -691,7 +691,7 @@ body {
   margin-bottom: var(--space-lg);
 }
 
-.timeline-header span {
+.timeline-header .timeline-title {
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-primary);
