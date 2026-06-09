@@ -187,39 +187,17 @@ body {
   margin: 0 auto;
 }
 
-.hero-image-container {
-  display: flex;
-  justify-content: center;
+.hero-emoji {
+  font-size: 3.5rem;
+  display: block;
   margin-bottom: var(--space-md);
+  animation: emoji-bounce 2s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
 }
 
-.hero-image {
-  max-width: 130px;
-  max-height: 130px;
-  width: auto;
-  height: auto;
-  border-radius: var(--radius-xl);
-  box-shadow: 0 8px 25px rgba(108, 99, 255, 0.2);
-  border: 3.5px solid rgba(255, 255, 255, 0.5);
-  object-fit: contain;
-  background: white; /* 투명도 혹은 배경이 있어도 깔끔하게 감싸기 위해 흰 배경 가미 */
-  animation: image-float 4s ease-in-out infinite;
-  transition: transform var(--transition-fast);
-}
-
-.hero-image:hover {
-  transform: scale(1.08) rotate(3deg);
-}
-
-@keyframes image-float {
-  0%, 100% {
-    transform: translateY(0);
-    box-shadow: 0 8px 25px rgba(108, 99, 255, 0.2);
-  }
-  50% {
-    transform: translateY(-8px);
-    box-shadow: 0 16px 35px rgba(108, 99, 255, 0.3);
-  }
+@keyframes emoji-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 .hero h1 {
