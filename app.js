@@ -828,7 +828,11 @@ function handleCopySchedule() {
   copyText += `⏰ 수유 시간표:\n`;
   copyText += scheduleText;
   copyText += `\n-----------------------------\n`;
-  copyText += `✨ 아기 수유 계산기(baby-feed)로 생성됨`;
+  
+  // Get current deployment/access URL dynamically
+  const siteUrl = window.location.href.split('?')[0];
+  copyText += `✨ 아기 수유 계산기(baby-feed)로 생성됨\n`;
+  copyText += `🔗 바로가기: ${siteUrl}`;
 
   navigator.clipboard.writeText(copyText).then(() => {
     const btn = elements.copyScheduleBtn;
