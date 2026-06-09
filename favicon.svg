@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+    <linearGradient id="milk" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#e8eeff;stop-opacity:0.95"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="url(#bg)"/>
+  <!-- Bottle body -->
+  <rect x="22" y="22" width="20" height="28" rx="4" fill="url(#milk)" stroke="#ffffff" stroke-width="1.5"/>
+  <!-- Bottle neck -->
+  <rect x="25" y="16" width="14" height="8" rx="2" fill="url(#milk)" stroke="#ffffff" stroke-width="1.5"/>
+  <!-- Nipple -->
+  <path d="M28 16 Q32 8 36 16" fill="#fdcb6e" stroke="#f9ca24" stroke-width="1"/>
+  <!-- Measurement lines -->
+  <line x1="24" y1="30" x2="30" y2="30" stroke="#a29bfe" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="35" x2="28" y2="35" stroke="#a29bfe" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="40" x2="30" y2="40" stroke="#a29bfe" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="45" x2="28" y2="45" stroke="#a29bfe" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
