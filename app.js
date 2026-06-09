@@ -114,7 +114,9 @@ let currentState = {
   recommendedFrequency: 0,
   dailyTotal: 0,
   isCustomFrequency: false,
-  customFrequency: 8
+  customFrequency: 8,
+  isCustomTotal: false,
+  customTotal: 800
 };
 
 // ============================================
@@ -142,6 +144,11 @@ const elements = {
   customFrequency: document.getElementById('custom-frequency'),
   freqMinus: document.getElementById('freq-minus'),
   freqPlus: document.getElementById('freq-plus'),
+  customTotalToggle: document.getElementById('custom-total-toggle'),
+  customTotalInput: document.getElementById('custom-total-input'),
+  customTotal: document.getElementById('custom-total'),
+  totalMinus: document.getElementById('total-minus'),
+  totalPlus: document.getElementById('total-plus'),
   scheduleSection: document.getElementById('schedule-section'),
   firstFeedingTime: document.getElementById('first-feeding-time'),
   sleepToggle: document.getElementById('sleep-toggle'),
@@ -182,6 +189,10 @@ function init() {
   elements.freqMinus.addEventListener('click', () => adjustFrequency(-1));
   elements.freqPlus.addEventListener('click', () => adjustFrequency(1));
   elements.customFrequency.addEventListener('change', handleCustomFrequencyChange);
+  elements.customTotalToggle.addEventListener('change', handleCustomTotalToggle);
+  elements.totalMinus.addEventListener('click', () => adjustCustomTotal(-50));
+  elements.totalPlus.addEventListener('click', () => adjustCustomTotal(50));
+  elements.customTotal.addEventListener('change', handleCustomTotalChange);
   elements.generateScheduleBtn.addEventListener('click', generateSchedule);
   elements.copyScheduleBtn.addEventListener('click', handleCopySchedule);
   elements.firstFeedingTime.addEventListener('input', handleScheduleInputChange);
@@ -202,6 +213,11 @@ function loadSavedData() {
   const savedSleepToggle = localStorage.getItem('sleepToggle');
   const savedSleepStart = localStorage.getItem('sleepStartTime');
   const savedFirstFeed = localStorage.getItem('firstFeedingTime');
+
+  const savedCustomFreqToggle = localStorage.getItem('isCustomFrequency');
+  const savedCustomFreqVal = localStorage.getItem('customFrequency');
+  const savedCustomTotalToggle = localStorage.getItem('isCustomTotal');
+  const savedCustomTotalVal = localStorage.getItem('customTotal');
 
   if (savedBirthDate) {
     elements.birthDate.value = savedBirthDate;
@@ -230,6 +246,35 @@ function loadSavedData() {
   // Auto trigger calculation if birthdate is present
   if (savedBirthDate) {
     handleCalculate(true); // pass true to specify it's an auto-load event (avoid scrolling on load)
+    
+    // Apply saved custom settings
+    let needRecalculate = false;
+    
+    if (savedCustomFreqToggle === 'true') {
+      elements.customFrequencyToggle.checked = true;
+      elements.customFrequencyInput.style.display = 'block';
+      currentState.isCustomFrequency = true;
+      if (savedCustomFreqVal) {
+        elements.customFrequency.value = savedCustomFreqVal;
+        currentState.customFrequency = parseInt(savedCustomFreqVal);
+      }
+      needRecalculate = true;
+    }
+    
+    if (savedCustomTotalToggle === 'true') {
+      elements.customTotalToggle.checked = true;
+      elements.customTotalInput.style.display = 'block';
+      currentState.isCustomTotal = true;
+      if (savedCustomTotalVal) {
+        elements.customTotal.value = savedCustomTotalVal;
+        currentState.customTotal = parseInt(savedCustomTotalVal);
+      }
+      needRecalculate = true;
+    }
+    
+    if (needRecalculate) {
+      recalculateCustomValues();
+    }
   }
 }
 
@@ -241,6 +286,11 @@ function saveToLocalStorage() {
   const sleepToggle = elements.sleepToggle.checked;
   const sleepStart = elements.sleepStartTime.value;
   const firstFeed = elements.firstFeedingTime.value;
+
+  const isCustomFrequency = elements.customFrequencyToggle.checked;
+  const customFrequency = elements.customFrequency.value;
+  const isCustomTotal = elements.customTotalToggle.checked;
+  const customTotal = elements.customTotal.value;
 
   localStorage.setItem('babyBirthDate', birthDateStr);
   
@@ -255,6 +305,11 @@ function saveToLocalStorage() {
   localStorage.setItem('sleepToggle', sleepToggle);
   localStorage.setItem('sleepStartTime', sleepStart);
   localStorage.setItem('firstFeedingTime', firstFeed);
+
+  localStorage.setItem('isCustomFrequency', isCustomFrequency);
+  localStorage.setItem('customFrequency', customFrequency);
+  localStorage.setItem('isCustomTotal', isCustomTotal);
+  localStorage.setItem('customTotal', customTotal);
 }
 
 // ============================================
@@ -408,11 +463,18 @@ function handleCalculate(isAutoLoad = false) {
   }
 
   currentState.customFrequency = currentState.recommendedFrequency;
+  currentState.customTotal = currentState.dailyTotal;
 
-  // Reset custom frequency toggle
-  elements.customFrequencyToggle.checked = false;
-  elements.customFrequencyInput.style.display = 'none';
-  currentState.isCustomFrequency = false;
+  // Reset custom toggles only on manual calculation
+  if (!isAutoLoad) {
+    elements.customFrequencyToggle.checked = false;
+    elements.customFrequencyInput.style.display = 'none';
+    currentState.isCustomFrequency = false;
+
+    elements.customTotalToggle.checked = false;
+    elements.customTotalInput.style.display = 'none';
+    currentState.isCustomTotal = false;
+  }
 
   // Save successful configuration to LocalStorage
   saveToLocalStorage();
@@ -457,10 +519,13 @@ function handleCustomFrequencyToggle() {
 
   if (show) {
     elements.customFrequency.value = currentState.customFrequency;
-    recalculateWithCustomFrequency();
+    recalculateCustomValues();
   } else {
-    // Restore recommended values
-    handleCalculate();
+    if (currentState.isCustomTotal) {
+      recalculateCustomValues();
+    } else {
+      handleCalculate();
+    }
   }
 }
 
@@ -469,7 +534,7 @@ function adjustFrequency(delta) {
   val = Math.max(1, Math.min(16, val));
   elements.customFrequency.value = val;
   currentState.customFrequency = val;
-  recalculateWithCustomFrequency();
+  recalculateCustomValues();
 }
 
 function handleCustomFrequencyChange() {
@@ -478,33 +543,75 @@ function handleCustomFrequencyChange() {
   if (val > 16) val = 16;
   elements.customFrequency.value = val;
   currentState.customFrequency = val;
-  recalculateWithCustomFrequency();
+  recalculateCustomValues();
 }
 
-function recalculateWithCustomFrequency() {
-  const freq = currentState.customFrequency;
-  const guideline = currentState.guideline;
-  let dailyTarget = 0;
+function handleCustomTotalToggle() {
+  const show = elements.customTotalToggle.checked;
+  elements.customTotalInput.style.display = show ? 'block' : 'none';
+  currentState.isCustomTotal = show;
 
+  if (show) {
+    let currentTotal = currentState.dailyTotal || 800;
+    currentTotal = Math.round(currentTotal / 50) * 50;
+    currentTotal = Math.max(100, Math.min(2000, currentTotal));
+    
+    elements.customTotal.value = currentTotal;
+    currentState.customTotal = currentTotal;
+    recalculateCustomValues();
+  } else {
+    if (currentState.isCustomFrequency) {
+      recalculateCustomValues();
+    } else {
+      handleCalculate();
+    }
+  }
+}
+
+function adjustCustomTotal(delta) {
+  let val = parseInt(elements.customTotal.value) + delta;
+  val = Math.max(100, Math.min(2000, val));
+  elements.customTotal.value = val;
+  currentState.customTotal = val;
+  recalculateCustomValues();
+}
+
+function handleCustomTotalChange() {
+  let val = parseInt(elements.customTotal.value);
+  if (isNaN(val) || val < 100) val = 100;
+  if (val > 2000) val = 2000;
+  val = Math.round(val / 10) * 10;
+  elements.customTotal.value = val;
+  currentState.customTotal = val;
+  recalculateCustomValues();
+}
+
+function recalculateCustomValues() {
+  const guideline = currentState.guideline;
+  if (!guideline) return;
+
+  let baseDailyTotal = 0;
   if (currentState.weight) {
-    dailyTarget = Math.min(1000, currentState.weight * 150);
+    baseDailyTotal = Math.min(1000, currentState.weight * 150);
   } else {
     const recFreq = Math.round((guideline.minFrequency + guideline.maxFrequency) / 2);
     const recPerFeeding = Math.round((guideline.minPerFeeding + guideline.maxPerFeeding) / 2);
-    dailyTarget = recPerFeeding * recFreq;
+    baseDailyTotal = recPerFeeding * recFreq;
   }
-  
-  let perFeeding = Math.round((dailyTarget / freq) / 10) * 10;
-  // Ensure it doesn't get ridiculously small or large
+
+  const freq = currentState.isCustomFrequency ? currentState.customFrequency : Math.round((guideline.minFrequency + guideline.maxFrequency) / 2);
+  const total = currentState.isCustomTotal ? currentState.customTotal : baseDailyTotal;
+
+  let perFeeding = Math.round((total / freq) / 10) * 10;
   perFeeding = Math.max(10, Math.min(300, perFeeding));
 
   currentState.recommendedFrequency = freq;
   currentState.recommendedPerFeeding = perFeeding;
   currentState.dailyTotal = perFeeding * freq;
 
+  saveToLocalStorage();
   updateResultUI();
 
-  // Update schedule if visible
   if (elements.scheduleTimeline.style.display !== 'none') {
     generateSchedule(true);
   }
@@ -600,7 +707,13 @@ function updateResultUI() {
     <span style="color: var(--color-text-muted); font-size: 0.8em;">💡 ${g.description}</span>
   `;
 
-  if (currentState.weight) {
+  if (currentState.isCustomTotal) {
+    baseRangeHtml = `
+      <strong>📝 사용자 설정 하루 총 수유량 (${currentState.customTotal}ml) 적용됨</strong><br>
+      설정된 목표 총량에 따라 1회 수유량이 계산되었습니다. ${currentState.weight ? `(입력된 체중 ${currentState.weight}kg 대비 조절됨)` : ''}<br>
+      <span style="color: var(--color-primary); font-size: 0.85em;">주변 가이드: ${g.label} (${g.minPerFeeding}~${g.maxPerFeeding}ml)</span>
+    `;
+  } else if (currentState.weight) {
     baseRangeHtml = `
       <strong>⚖️ 체중 기반 계산 (${currentState.weight}kg) 적용됨</strong><br>
       체중당 권장량 (150ml/kg) 기준으로 하루 약 ${Math.round(currentState.weight * 150)}ml 산출.<br>

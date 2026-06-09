@@ -135,8 +135,9 @@
         <p class="range-text" id="range-text"></p>
       </div>
 
-      <!-- Custom frequency option -->
+      <!-- Custom frequency & daily total options -->
       <div class="custom-section">
+        <!-- Custom Frequency -->
         <div class="form-group toggle-group">
           <div class="toggle-label-row">
             <label for="custom-frequency-toggle">수유 횟수 직접 설정</label>
@@ -146,7 +147,7 @@
             </div>
           </div>
         </div>
-        <div class="custom-frequency-input" id="custom-frequency-input" style="display:none;">
+        <div class="custom-frequency-input" id="custom-frequency-input" style="display:none; margin-bottom: var(--space-md);">
           <label for="custom-frequency">원하는 수유 횟수</label>
           <div class="stepper">
             <button class="stepper-btn" id="freq-minus" aria-label="횟수 감소">−</button>
@@ -154,6 +155,27 @@
             <button class="stepper-btn" id="freq-plus" aria-label="횟수 증가">+</button>
           </div>
           <p class="helper-text">횟수를 변경하면 1회 수유량이 자동으로 조정됩니다</p>
+        </div>
+
+        <!-- Custom Daily Total -->
+        <div class="form-group toggle-group" style="border-top: 1px dashed var(--color-border); padding-top: var(--space-md); margin-top: var(--space-md);">
+          <div class="toggle-label-row">
+            <label for="custom-total-toggle">하루 총 수유량 직접 설정</label>
+            <div class="toggle-switch">
+              <input type="checkbox" id="custom-total-toggle" class="toggle-input">
+              <label for="custom-total-toggle" class="toggle-slider"></label>
+            </div>
+          </div>
+        </div>
+        <div class="custom-total-input" id="custom-total-input" style="display:none;">
+          <label for="custom-total">원하는 하루 총 수유량</label>
+          <div class="stepper" style="max-width: 250px;">
+            <button class="stepper-btn" id="total-minus" aria-label="수유량 감소">−</button>
+            <input type="number" id="custom-total" class="stepper-value" min="100" max="2000" step="50" value="800" style="width: 80px; text-align: right; padding-right: 6px;">
+            <span style="font-size: var(--font-size-md); font-weight: 600; color: var(--color-text); margin-right: 8px; margin-left: 2px;">ml</span>
+            <button class="stepper-btn" id="total-plus" aria-label="수유량 증가">+</button>
+          </div>
+          <p class="helper-text">총 수유량을 변경하면 1회 수유량이 자동으로 조정됩니다</p>
         </div>
       </div>
     </section>
