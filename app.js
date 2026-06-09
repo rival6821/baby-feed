@@ -1,6 +1,6 @@
 /**
  * 아기 수유량 계산기 - App Logic
- * 월령별 소아과 가이드라인 및 체중 기준 수유량 산출, 밤잠 적용 스케줄 알고리즘
+ * 월령별 소아과 가이드라인 및 체중 기준 수유량 산출, 밤잠 적용 스케줄 알고리즘, 로컬 스토리지 데이터 캐싱
  */
 
 // ============================================
@@ -182,6 +182,75 @@ function init() {
   elements.freqPlus.addEventListener('click', () => adjustFrequency(1));
   elements.customFrequency.addEventListener('change', handleCustomFrequencyChange);
   elements.generateScheduleBtn.addEventListener('click', generateSchedule);
+
+  // Load saved data from localStorage (Auto calculation if birthdate exists)
+  loadSavedData();
+}
+
+// ============================================
+// LocalStorage caching
+// ============================================
+function loadSavedData() {
+  const savedBirthDate = localStorage.getItem('babyBirthDate');
+  const savedWeight = localStorage.getItem('babyWeight');
+  const savedPremature = localStorage.getItem('isPremature');
+  const savedWeeks = localStorage.getItem('gestationalWeeks');
+  const savedSleepToggle = localStorage.getItem('sleepToggle');
+  const savedSleepStart = localStorage.getItem('sleepStartTime');
+  const savedFirstFeed = localStorage.getItem('firstFeedingTime');
+
+  if (savedBirthDate) {
+    elements.birthDate.value = savedBirthDate;
+  }
+  if (savedWeight) {
+    elements.babyWeight.value = savedWeight;
+  }
+  if (savedPremature === 'true') {
+    elements.prematureToggle.checked = true;
+    handlePrematureToggle();
+  }
+  if (savedWeeks) {
+    elements.gestationalWeeks.value = savedWeeks;
+  }
+  if (savedSleepToggle === 'true') {
+    elements.sleepToggle.checked = true;
+    handleSleepToggle();
+  }
+  if (savedSleepStart) {
+    elements.sleepStartTime.value = savedSleepStart;
+  }
+  if (savedFirstFeed) {
+    elements.firstFeedingTime.value = savedFirstFeed;
+  }
+
+  // Auto trigger calculation if birthdate is present
+  if (savedBirthDate) {
+    handleCalculate(true); // pass true to specify it's an auto-load event (avoid scrolling on load)
+  }
+}
+
+function saveToLocalStorage() {
+  const birthDateStr = elements.birthDate.value;
+  const weightStr = elements.babyWeight.value;
+  const isPremature = elements.prematureToggle.checked;
+  const gestationalWeeks = elements.gestationalWeeks.value;
+  const sleepToggle = elements.sleepToggle.checked;
+  const sleepStart = elements.sleepStartTime.value;
+  const firstFeed = elements.firstFeedingTime.value;
+
+  localStorage.setItem('babyBirthDate', birthDateStr);
+  
+  if (weightStr) {
+    localStorage.setItem('babyWeight', weightStr);
+  } else {
+    localStorage.removeItem('babyWeight');
+  }
+
+  localStorage.setItem('isPremature', isPremature);
+  localStorage.setItem('gestationalWeeks', gestationalWeeks);
+  localStorage.setItem('sleepToggle', sleepToggle);
+  localStorage.setItem('sleepStartTime', sleepStart);
+  localStorage.setItem('firstFeedingTime', firstFeed);
 }
 
 // ============================================
@@ -248,10 +317,10 @@ function handleSleepToggle() {
   }
 }
 
-function handleCalculate() {
+function handleCalculate(isAutoLoad = false) {
   const birthDateStr = elements.birthDate.value;
   if (!birthDateStr) {
-    shakeElement(elements.birthDate);
+    if (!isAutoLoad) shakeElement(elements.birthDate);
     return;
   }
 
@@ -261,7 +330,7 @@ function handleCalculate() {
 
   const actualDays = daysBetween(birthDate, today);
   if (actualDays < 0) {
-    shakeElement(elements.birthDate);
+    if (!isAutoLoad) shakeElement(elements.birthDate);
     return;
   }
 
@@ -274,7 +343,7 @@ function handleCalculate() {
   if (currentState.isPremature) {
     const gw = parseInt(elements.gestationalWeeks.value);
     if (!gw) {
-      shakeElement(elements.gestationalWeeks);
+      if (!isAutoLoad) shakeElement(elements.gestationalWeeks);
       return;
     }
     currentState.gestationalWeeks = gw;
@@ -323,6 +392,9 @@ function handleCalculate() {
   elements.customFrequencyInput.style.display = 'none';
   currentState.isCustomFrequency = false;
 
+  // Save successful configuration to LocalStorage
+  saveToLocalStorage();
+
   // Update UI
   updateResultUI();
 
@@ -331,8 +403,12 @@ function handleCalculate() {
   elements.scheduleSection.style.display = 'block';
   elements.guidelinesSection.style.display = 'block';
 
-  // Reset schedule
-  elements.scheduleTimeline.style.display = 'none';
+  // Reset schedule or recreate if loaded from cache
+  if (isAutoLoad) {
+    generateSchedule(true);
+  } else {
+    elements.scheduleTimeline.style.display = 'none';
+  }
 
   // Re-trigger animation
   [elements.resultSection, elements.scheduleSection, elements.guidelinesSection].forEach(el => {
@@ -344,10 +420,12 @@ function handleCalculate() {
   // Highlight current row in guidelines table
   highlightCurrentGuideline(guideline);
 
-  // Scroll to results
-  setTimeout(() => {
-    elements.resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 200);
+  // Scroll to results only if user manually clicked "Calculate"
+  if (!isAutoLoad) {
+    setTimeout(() => {
+      elements.resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  }
 }
 
 function handleCustomFrequencyToggle() {
@@ -406,7 +484,7 @@ function recalculateWithCustomFrequency() {
 
   // Update schedule if visible
   if (elements.scheduleTimeline.style.display !== 'none') {
-    generateSchedule();
+    generateSchedule(true);
   }
 }
 
@@ -560,7 +638,7 @@ document.head.appendChild(shakeStyle);
 // ============================================
 // Schedule Generation
 // ============================================
-function generateSchedule() {
+function generateSchedule(isSilent = false) {
   const timeStr = elements.firstFeedingTime.value;
   if (!timeStr) return;
 
@@ -648,6 +726,9 @@ function generateSchedule() {
     }
   }
 
+  // Save schedule preferences to localStorage too
+  saveToLocalStorage();
+
   // Render timeline
   elements.timelineList.innerHTML = scheduleItems.map((item, idx) => `
     <div class="timeline-item ${item.isNight ? 'night-feed' : ''}" 
@@ -661,10 +742,12 @@ function generateSchedule() {
 
   elements.scheduleTimeline.style.display = 'block';
   
-  // Scroll to timeline
-  setTimeout(() => {
-    elements.scheduleTimeline.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, 200);
+  // Scroll to timeline (if not silently loaded in background)
+  if (!isSilent) {
+    setTimeout(() => {
+      elements.scheduleTimeline.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 200);
+  }
 }
 
 // ============================================
